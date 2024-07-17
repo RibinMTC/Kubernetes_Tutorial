@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-deployment
+  labels:
+    app: mongo
+spec:
+  replicas: 1 #one replica since for dataset we want to avoid race conditions
+  selector:
+    matchLabels:
+      app: mongo
+  template: #Template contains blueprint for pod
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo:5.0 #search in dockerhub for official mongo image
+        ports:
+        - containerPort: 27017 #check dockerhub mongodb github to find port number
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME # name given my mongodb documentation
+          valueFrom:
+            secretKeyRef: #reference from mongo-secret.yaml file (see metadata name)
+              name: mongo-secret
+              key: mongo-user
+        - name: MONGO_INITDB_ROOT_PASSWORD # name given my mongodb documentation
+          valueFrom:
+            secretKeyRef: #reference from mongo-secret.yaml file (see metadata name)
+              name: mongo-secret
+              key: mongo-password
+---
+apiVersion: v1 #every pod needs a service to communicate with other pods
+kind: Service
+metadata:
+  name: mongo-service
+spec:
+  selector:
+    app: mongo
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017 # should be sames as containerport, tells to which port the input port should be forwarded to

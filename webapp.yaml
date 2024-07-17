@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-deployment
+  labels:
+    app: webapp
+spec:
+  replicas: 1 #one replica since for dataset we want to avoid race conditions
+  selector:
+    matchLabels:
+      app: webapp
+  template: #Template contains blueprint for pod
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+      - name: webapp
+        image: nanajanashia/k8s-demo-app:v1.0 #search in dockerhub for nana example image
+        ports:
+        - containerPort: 3000 #check dockerhub webappdb github to find port number
+        env:
+          - name: USERNAME # name confiugred in the docker image which expects this env variable
+            valueFrom:
+              secretKeyRef: #reference from mongo-secret.yaml file (see metadata name)
+                name: mongo-secret
+                key: mongo-user
+          - name: USER_PWD # name confiugred in the docker image which expects this env variable
+            valueFrom:
+              secretKeyRef: #reference from mongo-secret.yaml file (see metadata name)
+                name: mongo-secret
+                key: mongo-password
+          - name: DB_URL # url to database, defined in configmap (mongo-config.yaml)
+            valueFrom:
+              configMapKeyRef:
+                name: mongo-config
+                key: mongo-url
+---
+apiVersion: v1 #every pod needs a service to communicate with other pods
+kind: Service
+metadata:
+  name: webapp-service
+spec:
+  type: NodePort #required to make the service external and interact with outside environment
+  selector:
+    app: webapp
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000 # should be sames as containerport, tells to which port the input port should be forwarded to
+      nodePort:  30100 #exposes Service on each Node's IP at a static port (between 30000 - 32767)
